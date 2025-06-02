@@ -141,13 +141,12 @@ void Log::on_log_clicked()
             QMessageBox::critical(this, "查询失败", "错误：" + query.lastError().text());
             return;
         }
-
         bool passwordCorrect = false;
         if (query.next()) { // 查询到用户（用户名存在）
+
             QString storedPassword = query.value("密码").toString(); // 数据库存储的密码
             passwordCorrect = (Password == storedPassword); // 明文比对（实际需加密）
         }
-
         // 步骤 7：处理验证结果
         if (passwordCorrect) {
             QMessageBox::information(this, "登录成功", "欢迎，" + username + "！");

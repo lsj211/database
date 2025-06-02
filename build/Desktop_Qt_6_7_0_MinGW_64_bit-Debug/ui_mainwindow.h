@@ -12,6 +12,7 @@
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QFrame>
+#include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenuBar>
@@ -36,9 +37,12 @@ public:
     QPushButton *addevaluation;
     QPushButton *changedish;
     QPushButton *deletedish;
-    QFrame *frame;
     QScrollArea *dynamic1;
+    QWidget *widget;
+    QLabel *information;
+    QScrollArea *recommend;
     QWidget *scrollAreaWidgetContents;
+    QLabel *label;
     QMenuBar *menubar;
     QStatusBar *statusbar;
 
@@ -51,7 +55,7 @@ public:
         centralwidget->setObjectName("centralwidget");
         searchbutton = new QPushButton(centralwidget);
         searchbutton->setObjectName("searchbutton");
-        searchbutton->setGeometry(QRect(350, 30, 80, 18));
+        searchbutton->setGeometry(QRect(350, 30, 101, 21));
         searchtext = new QLineEdit(centralwidget);
         searchtext->setObjectName("searchtext");
         searchtext->setGeometry(QRect(190, 30, 151, 20));
@@ -63,37 +67,46 @@ public:
         homepage->setGeometry(QRect(130, 520, 80, 40));
         dynamic = new QFrame(centralwidget);
         dynamic->setObjectName("dynamic");
-        dynamic->setGeometry(QRect(90, 70, 441, 431));
+        dynamic->setGeometry(QRect(610, 470, 20, 131));
         dynamic->setFrameShape(QFrame::StyledPanel);
         dynamic->setFrameShadow(QFrame::Raised);
         addPort = new QPushButton(centralwidget);
         addPort->setObjectName("addPort");
-        addPort->setGeometry(QRect(0, 70, 80, 30));
+        addPort->setGeometry(QRect(10, 70, 80, 30));
         adddish = new QPushButton(centralwidget);
         adddish->setObjectName("adddish");
-        adddish->setGeometry(QRect(0, 70, 80, 30));
+        adddish->setGeometry(QRect(10, 70, 80, 30));
         addevaluation = new QPushButton(centralwidget);
         addevaluation->setObjectName("addevaluation");
-        addevaluation->setGeometry(QRect(0, 70, 80, 30));
+        addevaluation->setGeometry(QRect(10, 70, 80, 30));
         changedish = new QPushButton(centralwidget);
         changedish->setObjectName("changedish");
-        changedish->setGeometry(QRect(0, 70, 80, 30));
+        changedish->setGeometry(QRect(10, 70, 80, 30));
         deletedish = new QPushButton(centralwidget);
         deletedish->setObjectName("deletedish");
-        deletedish->setGeometry(QRect(0, 110, 80, 30));
-        frame = new QFrame(centralwidget);
-        frame->setObjectName("frame");
-        frame->setGeometry(QRect(580, 70, 151, 331));
-        frame->setFrameShape(QFrame::StyledPanel);
-        frame->setFrameShadow(QFrame::Raised);
+        deletedish->setGeometry(QRect(10, 110, 80, 30));
         dynamic1 = new QScrollArea(centralwidget);
         dynamic1->setObjectName("dynamic1");
-        dynamic1->setGeometry(QRect(580, 410, 120, 80));
+        dynamic1->setGeometry(QRect(110, 70, 441, 431));
         dynamic1->setWidgetResizable(true);
+        widget = new QWidget();
+        widget->setObjectName("widget");
+        widget->setGeometry(QRect(0, 0, 439, 429));
+        dynamic1->setWidget(widget);
+        information = new QLabel(centralwidget);
+        information->setObjectName("information");
+        information->setGeometry(QRect(110, 50, 91, 21));
+        recommend = new QScrollArea(centralwidget);
+        recommend->setObjectName("recommend");
+        recommend->setGeometry(QRect(570, 70, 151, 261));
+        recommend->setWidgetResizable(true);
         scrollAreaWidgetContents = new QWidget();
         scrollAreaWidgetContents->setObjectName("scrollAreaWidgetContents");
-        scrollAreaWidgetContents->setGeometry(QRect(0, 0, 118, 78));
-        dynamic1->setWidget(scrollAreaWidgetContents);
+        scrollAreaWidgetContents->setGeometry(QRect(0, 0, 149, 259));
+        recommend->setWidget(scrollAreaWidgetContents);
+        label = new QLabel(centralwidget);
+        label->setObjectName("label");
+        label->setGeometry(QRect(570, 50, 71, 16));
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
@@ -120,6 +133,8 @@ public:
         addevaluation->setText(QCoreApplication::translate("MainWindow", "\346\267\273\345\212\240\350\257\204\350\256\272", nullptr));
         changedish->setText(QCoreApplication::translate("MainWindow", "\344\277\256\346\224\271\350\217\234\345\223\201\344\277\241\346\201\257", nullptr));
         deletedish->setText(QCoreApplication::translate("MainWindow", "\345\210\240\351\231\244\350\257\245\350\217\234\345\223\201", nullptr));
+        information->setText(QString());
+        label->setText(QCoreApplication::translate("MainWindow", "\350\217\234\345\223\201\346\216\250\350\215\220\357\274\232", nullptr));
     } // retranslateUi
 
 };

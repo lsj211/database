@@ -19,8 +19,8 @@
      <rect>
       <x>350</x>
       <y>30</y>
-      <width>80</width>
-      <height>18</height>
+      <width>101</width>
+      <height>21</height>
      </rect>
     </property>
     <property name="text">
@@ -69,10 +69,10 @@
    <widget class="QFrame" name="dynamic">
     <property name="geometry">
      <rect>
-      <x>90</x>
-      <y>70</y>
-      <width>441</width>
-      <height>431</height>
+      <x>610</x>
+      <y>470</y>
+      <width>20</width>
+      <height>131</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -85,7 +85,7 @@
    <widget class="QPushButton" name="addPort">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>70</y>
       <width>80</width>
       <height>30</height>
@@ -98,7 +98,7 @@
    <widget class="QPushButton" name="adddish">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>70</y>
       <width>80</width>
       <height>30</height>
@@ -111,7 +111,7 @@
    <widget class="QPushButton" name="addevaluation">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>70</y>
       <width>80</width>
       <height>30</height>
@@ -124,7 +124,7 @@
    <widget class="QPushButton" name="changedish">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>70</y>
       <width>80</width>
       <height>30</height>
@@ -137,7 +137,7 @@
    <widget class="QPushButton" name="deletedish">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>110</y>
       <width>80</width>
       <height>30</height>
@@ -147,29 +147,49 @@
      <string>删除该菜品</string>
     </property>
    </widget>
-   <widget class="QFrame" name="frame">
-    <property name="geometry">
-     <rect>
-      <x>580</x>
-      <y>70</y>
-      <width>151</width>
-      <height>331</height>
-     </rect>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::StyledPanel</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Raised</enum>
-    </property>
-   </widget>
    <widget class="QScrollArea" name="dynamic1">
     <property name="geometry">
      <rect>
-      <x>580</x>
-      <y>410</y>
-      <width>120</width>
-      <height>80</height>
+      <x>110</x>
+      <y>70</y>
+      <width>441</width>
+      <height>431</height>
+     </rect>
+    </property>
+    <property name="widgetResizable">
+     <bool>true</bool>
+    </property>
+    <widget class="QWidget" name="widget">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>439</width>
+       <height>429</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QLabel" name="information">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>50</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QScrollArea" name="recommend">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>70</y>
+      <width>151</width>
+      <height>261</height>
      </rect>
     </property>
     <property name="widgetResizable">
@@ -180,11 +200,24 @@
       <rect>
        <x>0</x>
        <y>0</y>
-       <width>118</width>
-       <height>78</height>
+       <width>149</width>
+       <height>259</height>
       </rect>
      </property>
     </widget>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>50</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>菜品推荐：</string>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">

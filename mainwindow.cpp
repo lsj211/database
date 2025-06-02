@@ -8,7 +8,10 @@ MainWindow::MainWindow(QWidget *parent,bool b,int id)
     ismanager(b),userId(id), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->dynamic->hide();
+    ui->information->setText("主页");
     ui->searchtext->installEventFilter(this);
+    this->recommend();
     if(!ismanager){
         canteenPage();
         ui->addPort->hide();
@@ -53,157 +56,110 @@ bool MainWindow::eventFilter(QObject *object, QEvent *event)
     return QMainWindow::eventFilter(object, event);
 }
 
-// void MainWindow::clearcontainer(QFrame *frame)
-// {
-//     if (!frame) return;
 
-//     // 1. 清理布局中的所有项（关键）
-//     QLayout* layout = frame->layout();
-//     if (layout) {
-//         QLayoutItem* item;
-//         while ((item = layout->takeAt(0)) != nullptr) {  // 逐个取出布局项（从索引0开始）
-//             // a. 处理部件项（QWidgetItem）
-//             if (QWidget* widget = item->widget()) {
-//                 delete widget;  // 删除部件（自动从父部件中移除）
-//             }
-//             // b. 处理子布局项（QLayoutItem）
-//             else if (QLayout* childLayout = item->layout()) {
-//                 clearcontainer(qobject_cast<QFrame*>(childLayout->parentWidget()));  // 递归清理子布局的容器（假设子布局的父是QFrame）
-//                 delete childLayout;  // 删除子布局
-//             }
-//             // c. 处理间隔器项（QSpacerItem）等其他项
-//             delete item;  // 删除布局项本身（释放内存）
-//         }
-//         // 可选：删除布局（若需要重置容器的布局）
-//         delete layout;
-//         // frame->setLayout(nullptr);
-//     }
-
-//     // 2. 清理容器的直接子部件（未通过布局添加的部件）
-//     QList<QWidget*> children = frame->findChildren<QWidget*>();
-//     for (QWidget* child : children) {
-//         if (child != frame) {  // 避免删除容器自身
-//             delete child;  // 直接删除子部件（自动从父部件中移除）
-//         }
-//     }
-// }
-
-// void MainWindow::clearcontainer(QFrame *frame)
-// {
-//     if (!frame) return;
-
-//     // 1. 清理布局内容（安全删除所有子项）
-//     if (QLayout* layout = frame->layout()) {
-//         QLayoutItem* item;
-//         while ((item = layout->takeAt(0)) != nullptr) {
-//             // 处理子控件
-//             if (QWidget* widget = item->widget()) {
-//                 widget->deleteLater(); // 安全延迟删除
-//             }
-//             // 处理子布局
-//             else if (QLayout* subLayout = item->layout()) {
-//                 delete subLayout; // 直接删除子布局
-//             }
-//             // 处理间隔项
-//             else if (QSpacerItem* spacer = item->spacerItem()) {
-//                 delete spacer;
-//             }
-//             delete item; // 必须删除布局项
-//         }
-//         delete layout;   // 删除主布局
-//     }
-
-//     // 2. 清理未通过布局添加的直接子控件
-//     const auto children = frame->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly);
-//     for (QWidget* child : children) {
-//         child->deleteLater(); // 安全删除
-//     }
-
-//     // 3. 确保容器无残留布局
-//     frame->setLayout(nullptr);
-// }
-
-
-void MainWindow::clearcontainer(QFrame *frame)
+void MainWindow::clearcontainer(QScrollArea *scrollArea)
 {
-    if (!frame) return;
+    if (!scrollArea) return;
 
-    // 1. 清理布局（仅处理直接布局，不递归）
-    if (QLayout* layout = frame->layout()) {
-        QLayoutItem* item;
-        while ((item = layout->takeAt(0)) != nullptr) {
-            if (QWidget* widget = item->widget()) {
-                widget->deleteLater();
-            }
-            delete item;
+    // 1. 清理 QScrollArea 中的 widget（内容区域）
+    QWidget* contentWidget = scrollArea->widget();
+    if (contentWidget) {
+        // 删除内容区域的子控件
+        const auto children = contentWidget->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly);
+        for (QWidget* child : children) {
+            child->deleteLater();
         }
-        delete layout;
-        frame->setLayout(nullptr);
-    }
 
-    // 2. 清理未通过布局添加的直接子控件
-    const auto children = frame->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly);
-    for (QWidget* child : children) {
-        child->deleteLater();
+        // 删除布局
+        QLayout* layout = contentWidget->layout();
+        if (layout) {
+            QLayoutItem* item;
+            while ((item = layout->takeAt(0)) != nullptr) {
+                if (QWidget* widget = item->widget()) {
+                    widget->deleteLater();
+                }
+                delete item;
+            }
+            delete layout;
+        }
+
+        // 删除 contentWidget（也即是 QScrollArea 中的 widget）
+        scrollArea->setWidget(nullptr);
+        contentWidget->deleteLater();
     }
 }
-
 
 //主页面（顾客）
 void MainWindow::canteenPage()
 {
-    clearcontainer(ui->dynamic);
+    clearcontainer(ui->dynamic1);
     ui->addevaluation->hide();
+    ui->information->setText("主页");
+    // 数据库查询操作
     QSqlDatabase& db = Database::getInstance().getDb();
     QSqlQuery query(db);
-    // db.transaction();
-    QString search={
+    QString search = {
         "select 食堂编号,食堂名称,营业时间 from `食堂`"
     };
     query.prepare(search);
     query.exec();
 
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* layout = new QVBoxLayout(container);  // 为容器设置布局，不影响centralwidget的其他组件
+    // 创建一个 QWidget 作为 QScrollArea 的容器
+    QWidget* scrollWidget = new QWidget();  // 创建 QWidget 作为 scrollArea 的容器
+    QVBoxLayout* layout = new QVBoxLayout(scrollWidget);  // 为该 QWidget 设置布局
     layout->setContentsMargins(10, 10, 10, 10);
-    layout->setSpacing(8);
+    layout->setSpacing(8);  // 设置控件之间的间距
 
     bool hasData = false;
     while (query.next()) {
         hasData = true;
         QString name = query.value("食堂名称").toString();    // 食堂名称
-        QString time = query.value("营业时间").toString();     // 营业时间
-        int id=query.value("食堂编号").toInt();
-        // 创建CommandLinkButton
-        QCommandLinkButton* button = new QCommandLinkButton(container);
-        button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-        button->setMaximumHeight(60);  // 可选，限制最大高度
-        button->setText(name);                  // 主标题（食堂名称）
-        button->setDescription("营业时间：" + time);           // 副标题（营业时间）
-        // button->setIcon(QIcon(":/icons/canteen.png"));  // 可选：设置图标（需准备资源文件）
-        // button->setStyleSheet("QCommandLinkButton { text-align: left; padding: 12px; }");  // 样式调整
+        QString time = query.value("营业时间").toString();   // 营业时间
+        int id = query.value("食堂编号").toInt();
 
-        // 绑定点击事件（示例：点击时弹出食堂名称）
+        // 创建 CommandLinkButton
+        QCommandLinkButton* button = new QCommandLinkButton(scrollWidget);  // 使用 QWidget 作为父级
+        button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+        button->setMaximumHeight(60);  // 限制按钮的最大高度
+        button->setText(name);         // 主标题（食堂名称）
+        button->setDescription("营业时间：" + time);  // 副标题（营业时间）
+
+        // 绑定点击事件（点击按钮时，跳转到食堂详情页面）
         connect(button, &QCommandLinkButton::clicked, this, [this, id]() {
-            // QMessageBox::information(this, "食堂详情", "你点击了: " + name);
-            // 这里可以扩展其他逻辑（如跳转到详情页、加载窗口数据等）
-            portPage(id);
-            this->canteenselect=id;
+            portPage(id);  // 跳转到食堂详情页面
+            this->canteenselect = id;  // 设置选中的食堂编号
         });
-        qDebug()<<name;
-        qDebug()<<time;
-        layout->addWidget(button, 0, Qt::AlignTop);  // 将按钮添加到布局
+
+        layout->addWidget(button);  // 将按钮添加到布局
+    }
+
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidget(scrollWidget);
+
+    // 禁用自动调整，确保 QScrollArea 根据内容进行滚动
+    scrollArea->setWidgetResizable(true);
+    layout->addStretch();
+    // 如果没有数据，显示提示
+    if (!hasData) {
+        QLabel* noDataLabel = new QLabel("没有食堂数据", scrollWidget);
+        layout->addWidget(noDataLabel);  // 将提示信息添加到布局
     }
 }
+
 
 //主页面（管理员）
 void MainWindow::managePage(int id)
 {
     ui->addPort->show();
     ui->adddish->hide();
-    clearcontainer(ui->dynamic);
+    ui->changedish->hide();
+    ui->deletedish->hide();
+    clearcontainer(ui->dynamic1);  // 清空界面内容
+    ui->information->setText("主页");
     QSqlDatabase& db = Database::getInstance().getDb();
     QSqlQuery query(db);
+
+    // 获取当前用户管理的食堂编号
     query.prepare(R"(
         SELECT 管理食堂编号
           FROM `管理员`
@@ -211,13 +167,11 @@ void MainWindow::managePage(int id)
     )");
     query.bindValue(":userId", userId);
     if (!query.exec() || !query.next()) {
-        // 没查到管理员记录，或者执行失败
         QMessageBox::warning(this, "错误", "无法获取您的食堂信息");
         return;
     }
     int canteenid = query.value("管理食堂编号").toInt();
 
-    // —— 2. 查该食堂下的所有窗口 ——
     query.prepare(R"(
         SELECT 窗口编号, 窗口分类
           FROM `窗口`
@@ -229,235 +183,299 @@ void MainWindow::managePage(int id)
         return;
     }
 
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* layout = new QVBoxLayout(container);  // 为容器设置布局，不影响centralwidget的其他组件
-    layout->setContentsMargins(10, 10, 10, 10);
-    layout->setSpacing(8);
+    // 创建 QScrollArea 的容器
+    QWidget* scrollWidget = new QWidget();  // 使用 QWidget 作为容器
+    QVBoxLayout* layout = new QVBoxLayout(scrollWidget);  // 为 QWidget 设置布局
+    layout->setContentsMargins(10, 10, 10, 10);  // 设置外边距
+    layout->setSpacing(8);  // 设置控件间距
 
     bool hasData = false;
     while (query.next()) {
         hasData = true;
-        int id = query.value("窗口编号").toInt();    // 食堂名称
-        QString category = query.value("窗口分类").toString();     // 营业时间
-        // int id_1=query.value("食堂编号").toInt();
-        // 创建CommandLinkButton
-        QCommandLinkButton* button = new QCommandLinkButton(container);
-        button->setMaximumHeight(100);
-        button->setText("窗口");                  // 主标题（食堂名称）
-        button->setDescription("窗口分类：" + category);           // 副标题（营业时间）
-        // button->setIcon(QIcon(":/icons/canteen.png"));  // 可选：设置图标（需准备资源文件）
-        // button->setStyleSheet("QCommandLinkButton { text-align: left; padding: 12px; }");  // 样式调整
+        int windowId = query.value("窗口编号").toInt();  // 窗口编号
+        QString category = query.value("窗口分类").toString();  // 窗口分类
 
-        // 绑定点击事件（示例：点击时弹出食堂名称）
-        connect(button, &QCommandLinkButton::clicked, this, [this, id]() {
-            // QMessageBox::information(this, "食堂详情", "你点击了: " + name);
-            // 这里可以扩展其他逻辑（如跳转到详情页、加载窗口数据等）
-            //portPage(canteenid);
-            this->dishPage(id);
-            this->portselect=id;
+        QCommandLinkButton* button = new QCommandLinkButton(scrollWidget);
+        button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+        button->setMaximumHeight(100);
+        button->setText("窗口:"+QString::number(windowId));
+        button->setDescription("窗口分类：" + category);
+
+
+        connect(button, &QCommandLinkButton::clicked, this, [this, windowId]() {
+            this->dishPage(windowId);
+            this->portselect = windowId;
             ui->adddish->show();
             ui->addPort->hide();
         });
-        // qDebug()<<name;
-        // qDebug()<<time;
-        layout->addWidget(button);  // 将按钮添加到布局
+
+        layout->addWidget(button);
     }
+
+
+    if (!hasData) {
+        QLabel* noDataLabel = new QLabel("没有窗口数据", scrollWidget);
+        layout->addWidget(noDataLabel);
+    }
+
+
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidget(scrollWidget);
+
+    scrollArea->setWidgetResizable(true);
+    layout->addStretch();
 }
+
 
 
 
 // 添加窗口
 void MainWindow::on_addPort_clicked()
 {
-    clearcontainer(ui->dynamic);
-    // QSqlDatabase &db=Database::getInstance().getDb();
-    // QSqlQuery query(db);
-    // db.transaction();
+    clearcontainer(ui->dynamic1);
 
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+    QWidget* container = new QWidget();
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);  // 设置主布局
 
-    // 窗口编号组
+    // 创建窗口编号输入框
     QHBoxLayout* portNumberLayout = new QHBoxLayout();
-    portNumberLayout->setSpacing(2); // 标签和输入框间距2像素
-    QLabel *portnumber_label = new QLabel("窗口编号:",container);
-    QLineEdit *portnumber = new QLineEdit("请输入窗口编号",container);
+    portNumberLayout->setSpacing(10);
+    QLabel* portnumber_label = new QLabel("窗口编号:", container);
+    QLineEdit* portnumber = new QLineEdit("请输入窗口编号", container);
     portNumberLayout->addWidget(portnumber_label);
     portNumberLayout->addWidget(portnumber);
-    portNumberLayout->setContentsMargins(0,0,0,0);
+    portNumberLayout->setContentsMargins(0, 0, 0, 0);
 
-    // 窗口分类组
+    // 创建窗口分类输入框
     QHBoxLayout* portClassLayout = new QHBoxLayout();
-    portClassLayout->setSpacing(2); // 标签和输入框间距2像素
-    QLabel *portclass_label = new QLabel("窗口分类:",container);
-    QLineEdit *portclass = new QLineEdit("请输入窗口分类",container);
+    portClassLayout->setSpacing(10);  // 标签和输入框的间距
+    QLabel* portclass_label = new QLabel("窗口分类:", container);
+    QLineEdit* portclass = new QLineEdit("请输入窗口分类", container);
     portClassLayout->addWidget(portclass_label);
     portClassLayout->addWidget(portclass);
 
+    // 创建按钮布局
+    QHBoxLayout* buttonClassLayout = new QHBoxLayout();
+    buttonClassLayout->setSpacing(10);  // 按钮之间的间距
+    QPushButton* add = new QPushButton("添加", container);
+    QPushButton* back = new QPushButton("返回", container);
 
-
-    QHBoxLayout* buttonclass = new QHBoxLayout();     // 子水平布局
-    buttonclass->setSpacing(2); // 标签和输入框间距2像素
-    QPushButton *add = new QPushButton("添加",container);
-    QPushButton *back = new QPushButton("返回",container);
-
-    connect(add,&QPushButton::clicked,this,[=](){
-        QSqlDatabase &db=Database::getInstance().getDb();
+    // 连接添加按钮的点击事件
+    connect(add, &QPushButton::clicked, this, [=]() {
+        QSqlDatabase& db = Database::getInstance().getDb();
         QSqlQuery query(db);
-        db.transaction();
-        int id=portnumber->text().toInt();
-        QString class_name=portclass->text();
+        db.transaction();  // 开启事务
 
-        QString querySql=R"(select 管理食堂编号 from `管理员` where 用户编号 = :canteen_id)";
+        int id = portnumber->text().toInt();
+        QString class_name = portclass->text();
+
+        // 查询管理的食堂编号
+        QString querySql = R"(
+            select 管理食堂编号
+            from `管理员`
+            where 用户编号 = :canteen_id
+        )";
         query.prepare(querySql);
         query.bindValue(":canteen_id", this->userId);
         query.exec();
         query.next();
-        int canteen_id=query.value("管理食堂编号").toInt();
+        int canteen_id = query.value("管理食堂编号").toInt();
 
+        // 插入窗口数据到数据库
         QString insertUserSql = R"(
-        INSERT INTO `窗口` (窗口编号, 窗口分类,所属食堂编号)
-        VALUES (:port_id, :class,:canteen_id)
-    )";
+            INSERT INTO `窗口` (窗口编号, 窗口分类, 所属食堂编号)
+            VALUES (:port_id, :class, :canteen_id)
+        )";
         query.prepare(insertUserSql);
         query.bindValue(":port_id", id);
-        query.bindValue(":class", class_name); // 实际项目中密码需加密存储（如 MD5/SHA256）
-        query.bindValue(":canteen_id", canteen_id);
+        query.bindValue(":class", class_name);  // 设置窗口分类
+        query.bindValue(":canteen_id", canteen_id);  // 设置食堂编号
+
         if (!query.exec()) {
-            db.rollback(); // 插入失败，回滚事务
+            db.rollback();  // 如果执行失败，回滚事务
             QMessageBox::critical(this, "注册失败", "用户名已存在或数据库错误：" + query.lastError().text());
             return;
-        }
-        else
-        {
-            db.commit();
+        } else {
+            db.commit();  // 成功插入后提交事务
             QMessageBox::information(this, "创建成功", "新窗口已添加");
         }
-
     });
 
-    connect(back,&QPushButton::clicked,this,[=](){
-        this->managePage(this->userId);
+    // 连接返回按钮的点击事件
+    connect(back, &QPushButton::clicked, this, [=]() {
+        this->managePage(this->userId);  // 返回到管理员页面
     });
-    buttonclass->addWidget(add);
-    buttonclass->addWidget(back);
 
-    // 将子布局添加到主布局
+    // 将按钮添加到布局
+    buttonClassLayout->addWidget(add);
+    buttonClassLayout->addWidget(back);
+
+    // 将所有控件添加到主布局
     mainLayout->addLayout(portNumberLayout);
     mainLayout->addLayout(portClassLayout);
-    mainLayout->addLayout(buttonclass);
-    mainLayout->setSpacing(5); // 组与组之间的间距10像素
-    mainLayout->setContentsMargins(10, 10, 10, 10); // 容器边距
+    mainLayout->addLayout(buttonClassLayout);
+    mainLayout->setSpacing(15);  // 控件之间的间距
+    mainLayout->setContentsMargins(10, 10, 10, 10);  // 容器的边距
+
+
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidget(container);
+    scrollArea->setWidgetResizable(true);
 }
+
 
 
 
 //窗口页面
 void MainWindow::portPage(int id)
 {
-    if(this->ismanager)
+
+    if (this->ismanager)
     {
         ui->addPort->show();
         ui->adddish->hide();
     }
-    clearcontainer(ui->dynamic);
-    QSqlDatabase& db = Database::getInstance().getDb();
-    QSqlQuery query(db);
-    // db.transaction();
-    QString search={
-        "SELECT 窗口编号, 窗口分类 FROM `窗口` WHERE 所属食堂编号 = :canteenId"
-    };
+    clearcontainer(ui->dynamic1);
 
-    query.prepare(search);
-    query.bindValue(":canteenId", id);  // 类型自动适配
-    query.exec();
+    // 使用 QScrollArea 包裹内容
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidgetResizable(true);  // 设置滚动区域的大小自适应
+    QWidget* container = new QWidget();
+    scrollArea->setWidget(container);
 
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* layout = new QVBoxLayout(container);  // 为容器设置布局，不影响centralwidget的其他组件
+    QVBoxLayout* layout = new QVBoxLayout(container);  // 为容器设置布局
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(8);
+
+    QSqlDatabase& db = Database::getInstance().getDb();
+    QSqlQuery query(db);
+
+    QString info = R"(
+        SELECT 食堂名称
+        FROM `食堂`
+        WHERE 食堂编号 = :canteenId
+    )";
+
+    query.prepare(info);
+    query.bindValue(":canteenId", id);
+    query.exec();
+    query.next();
+    QString canteen=query.value("食堂名称").toString();
+    ui->information->setText(canteen+":");
+
+    QString search = R"(
+        SELECT 窗口编号, 窗口分类
+        FROM `窗口`
+        WHERE 所属食堂编号 = :canteenId
+    )";
+
+    query.prepare(search);
+    query.bindValue(":canteenId", id);
+    query.exec();
 
     bool hasData = false;
     while (query.next()) {
         hasData = true;
-        QString name = query.value("窗口编号").toString();    // 食堂名称
-        QString category = query.value("窗口分类").toString();     // 营业时间
-        int id_now=query.value("窗口编号").toInt();
+        QString name = query.value("窗口编号").toString();  // 窗口编号
+        QString category = query.value("窗口分类").toString();  // 窗口分类
+        int id_now = query.value("窗口编号").toInt();
 
-        // 创建CommandLinkButton
-        QCommandLinkButton* button = new QCommandLinkButton();
+        // 创建 QCommandLinkButton
+        QCommandLinkButton* button = new QCommandLinkButton(container);
         button->setMaximumHeight(100);
-        button->setText("窗口"+name);                  // 主标题（食堂名称）
-        button->setDescription("窗口分类：" + category);           // 副标题（营业时间）
-        // button->setIcon(QIcon(":/icons/canteen.png"));  // 可选：设置图标（需准备资源文件）
-        // button->setStyleSheet("QCommandLinkButton { text-align: left; padding: 12px; }");  // 样式调整
+        button->setText("窗口:" + name);  // 主标题
+        button->setDescription("窗口分类：" + category);  // 副标题
 
-        // 绑定点击事件（示例：点击时弹出食堂名称）
+        // 绑定点击事件
         connect(button, &QCommandLinkButton::clicked, this, [this, id_now]() {
-            // QMessageBox::information(this, "食堂详情", "你点击了: " + name);
-            // 这里可以扩展其他逻辑（如跳转到详情页、加载窗口数据等）
-            // portPage(id);
             this->dishPage(id_now);
-            this->portselect=id_now;
+            this->portselect = id_now;
         });
         layout->addWidget(button);  // 将按钮添加到布局
     }
+
+    // 如果没有数据，可以添加一个提示
+    if (!hasData) {
+        QLabel* noDataLabel = new QLabel("暂无窗口数据", container);
+        layout->addWidget(noDataLabel);
+    }
+    layout->addStretch();
 }
+
 
 
 void MainWindow::dishPage(int id)
 {
-    qDebug()<<id;
-    if(this->ismanager)
+
+    if (this->ismanager)
     {
         ui->addPort->hide();
         ui->adddish->show();
+        ui->changedish->hide();
+        ui->deletedish->hide();
     }
-    clearcontainer(ui->dynamic);
-    QSqlDatabase &db=Database::getInstance().getDb();
-    QSqlQuery query(db);
-    QString search={
-        "select 菜品编号,菜品名称,价格,标签 from `菜品` where 窗口编号=:portid"
-    };
-    query.prepare(search);
-    query.bindValue(":portid",id);
-    if (!query.exec()) {
-        qDebug() << "查询执行失败:" << query.lastError().text();
-        return;
-    }
-    QFrame* container = ui->dynamic;
+    ui->information->setText("窗口:"+QString::number(id));
+    clearcontainer(ui->dynamic1);
+
+    // 使用 QScrollArea 包裹内容
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidgetResizable(true);
+    QWidget* container = new QWidget();
+    scrollArea->setWidget(container);
+
     QVBoxLayout* layout = new QVBoxLayout(container);
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(8);
 
+    QSqlDatabase& db = Database::getInstance().getDb();
+    QSqlQuery query(db);
+    QString search = R"(
+        SELECT 菜品编号, 菜品名称, 价格, 标签,菜品评分
+        FROM `菜品`
+        WHERE 窗口编号 = :portid
+    )";
+
+    query.prepare(search);
+    query.bindValue(":portid", id);
+    if (!query.exec()) {
+        qDebug() << "查询执行失败:" << query.lastError().text();
+        return;
+    }
+
     bool hasData = false;
     while (query.next()) {
-        // qDebug()<<100000000000;
         hasData = true;
         QString name = query.value("菜品名称").toString();
         float price = query.value("价格").toFloat();
+        float score = query.value("菜品评分").toFloat();
         QString label = query.value("标签").toString();
-        int dish_id=query.value("菜品编号").toInt();
-        // 创建CommandLinkButton
+        int dish_id = query.value("菜品编号").toInt();
+
+        // 创建 QCommandLinkButton
         QCommandLinkButton* button = new QCommandLinkButton(container);
         button->setMaximumHeight(100);
-        button->setText(name);                  // 主标题（食堂名称）
-        button->setDescription("标签：" + label+ "  "+ "价格："+QString::number(price));           // 副标题（营业时间）
-        // button->setIcon(QIcon(":/icons/canteen.png"));  // 可选：设置图标（需准备资源文件）
-        // button->setStyleSheet("QCommandLinkButton { text-align: left; padding: 12px; }");  // 样式调整
+        button->setText(name);  // 主标题
+        button->setDescription("标签：" + label + "  " + "价格：" + QString::number(price)+ "  " +"评分"+QString::number(score));  // 副标题
 
         connect(button, &QCommandLinkButton::clicked, this, [this, dish_id]() {
             this->evaluationPage(dish_id);
-            this->dishselect=dish_id;
+            this->dishselect = dish_id;
         });
-        layout->addWidget(button);  // 将按钮添加到布局
+        layout->addWidget(button);
     }
 
+    if (!hasData) {
+        QLabel* noDataLabel = new QLabel("暂无菜品数据", container);
+        layout->addWidget(noDataLabel);
+    }
+    layout->addStretch();
 }
+
 
 void MainWindow::evaluationPage(int id)
 {
-    if(!this->ismanager)
+    ui->information->setText("当前评价:");
+    if (!this->ismanager)
     {
         ui->addevaluation->show();
     }
@@ -465,39 +483,51 @@ void MainWindow::evaluationPage(int id)
     {
         ui->changedish->show();
         ui->deletedish->show();
+        ui->addPort->hide();
+        ui->adddish->hide();
+
     }
     ui->adddish->hide();
-    clearcontainer(ui->dynamic);
-    QSqlDatabase &db=Database::getInstance().getDb();
+    clearcontainer(ui->dynamic1);
+
+    // 使用 QScrollArea 包裹内容
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidgetResizable(true);
+    QWidget* container = new QWidget();
+    scrollArea->setWidget(container);
+
+    QVBoxLayout* layout = new QVBoxLayout(container);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(8);
+
+    QSqlDatabase& db = Database::getInstance().getDb();
     QSqlQuery query(db);
     QString search = R"(
-    SELECT 评分, 评价, 评价时间, 顾客.昵称, 顾客.用户编号
-    FROM 评价
-    INNER JOIN 顾客 ON 评价.用户编号 = 顾客.用户编号
-    WHERE 评价.菜品编号 = :dishid
-    ORDER BY 评价时间 DESC
+        SELECT 评分, 评价, 评价时间, 顾客.昵称, 顾客.用户编号
+        FROM 评价
+        INNER JOIN 顾客 ON 评价.用户编号 = 顾客.用户编号
+        WHERE 评价.菜品编号 = :dishid
+        ORDER BY 评价时间 DESC
     )";
 
     query.prepare(search);
-    query.bindValue(":dishid",id);
+    query.bindValue(":dishid", id);
     if (!query.exec()) {
         qDebug() << "查询失败：" << query.lastError().text();
         return;
     }
 
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* layout = new QVBoxLayout(container);  // 为容器设置布局，不影响centralwidget的其他组件
-    layout->setContentsMargins(10, 10, 10, 10);
-    layout->setSpacing(8);
     bool hasData = false;
-    QListWidget *listWidget = new QListWidget(container);
+    QListWidget* listWidget = new QListWidget(container);
+    listWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);  // 设置大小策略
+    listWidget->setSpacing(5);  // 设置条目之间的间距，单位为像素
 
     while (query.next()) {
         hasData = true;
         int score = query.value("评分").toInt();
         QString evaluation = query.value("评价").toString();
         QString username = query.value("昵称").toString();
-        int uer_id=query.value("用户编号").toInt();
+        int user_id = query.value("用户编号").toInt();
         QString time = query.value("评价时间").toDateTime().toString("yyyy-MM-dd hh:mm:ss");
         QString displayText = QString("用户：%1\n评分：%2\n评价：%3\n时间：%4")
                                   .arg(username)
@@ -507,44 +537,60 @@ void MainWindow::evaluationPage(int id)
 
         listWidget->addItem(displayText);
     }
-    if(hasData)
-    layout->addWidget(listWidget);
-    else
-    {
-        QLabel *text=new QLabel("暂无评价");
-        layout->addWidget(text);
+
+    if (hasData) {
+        layout->addWidget(listWidget);
+    } else {
+        QLabel* noDataLabel = new QLabel("暂无评价", container);
+        layout->addWidget(noDataLabel);
     }
+
 }
+
+
+
 
 
 
 //搜索菜品
 void MainWindow::on_searchbutton_clicked()
 {
-    if(ui->searchtext->text()=="请输入菜名")
+    if (ui->searchtext->text() == "请输入菜名")
     {
         QMessageBox::information(this, "搜索失败", "搜索内容不能为空");
         return;
     }
-    QString dish=ui->searchtext->text();
-    QSqlDatabase &db=Database::getInstance().getDb();
+    ui->information->setText("搜索结果:");
+    QString dish = ui->searchtext->text();
+    QSqlDatabase& db = Database::getInstance().getDb();
     QSqlQuery query(db);
-    clearcontainer(ui->dynamic);
+    clearcontainer(ui->dynamic1);
+    if(this->ismanager)
+    {
+
+    }
+    else
+    {
+    // QString search = R"(
+    //     SELECT
+    //         菜品.菜品编号,
+    //         菜品.菜品名称,
+    //         菜品.价格,
+    //         菜品.标签,
+    //         菜品.菜品评分,
+    //         窗口.窗口编号,
+    //         食堂.食堂名称
+    //     FROM 菜品
+    //     INNER JOIN 窗口 ON 菜品.窗口编号 = 窗口.窗口编号
+    //     INNER JOIN 食堂 ON 窗口.所属食堂编号 = 食堂.食堂编号
+    //     WHERE 菜品.菜品名称 LIKE :dish
+    // )";
     QString search = R"(
-    SELECT
-        菜品.菜品编号,
-        菜品.菜品名称,
-        菜品.价格,
-        菜品.标签,
-        窗口.窗口编号,
-        食堂.食堂名称
-    FROM 菜品
-    INNER JOIN 窗口 ON 菜品.窗口编号 = 窗口.窗口编号
-    INNER JOIN 食堂 ON 窗口.所属食堂编号 = 食堂.食堂编号
-    WHERE 菜品.菜品名称 LIKE :dish
-)";
-
-
+    SELECT *
+    FROM 菜品窗口食堂视图
+    WHERE 菜品名称 LIKE :dish
+    ORDER BY 菜品评分 DESC
+    )";
     query.prepare(search);
     query.bindValue(":dish", "%" + dish + "%");
 
@@ -552,50 +598,66 @@ void MainWindow::on_searchbutton_clicked()
         qDebug() << "查询失败:" << query.lastError().text();
         return;
     }
-    QFrame* container = ui->dynamic;
+
+    // 使用 QScrollArea 包裹内容
+    QScrollArea* scrollArea = ui->dynamic1;
+    scrollArea->setWidgetResizable(true);
+    QWidget* container = new QWidget();
+    scrollArea->setWidget(container);
+
     QVBoxLayout* layout = new QVBoxLayout(container);
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(8);
-
+    qDebug()<<9999999;
     bool hasData = false;
     while (query.next()) {
-        // qDebug()<<100000000000;
+        qDebug()<<1111199;
         hasData = true;
         QString name = query.value("菜品名称").toString();
         float price = query.value("价格").toFloat();
         QString label = query.value("标签").toString();
-        int dish_id=query.value("菜品编号").toInt();
-        qDebug()<<dish_id;
+        int dish_id = query.value("菜品编号").toInt();
         int windowId = query.value("窗口编号").toInt();
         QString canteenName = query.value("食堂名称").toString();
-        // 创建CommandLinkButton
+        int score=query.value("菜品评分").toInt();
+
+        // 创建 QCommandLinkButton
         QCommandLinkButton* button = new QCommandLinkButton(container);
         button->setMaximumHeight(100);
-        button->setText(name);                  // 主标题（食堂名称）
-        button->setDescription("所在食堂:"+canteenName+"  "+"所在窗口："+QString::number(windowId)+"  "+"标签：" + label+ "  "+ "价格："+QString::number(price));           // 副标题（营业时间）
-        // button->setIcon(QIcon(":/icons/canteen.png"));  // 可选：设置图标（需准备资源文件）
-        // button->setStyleSheet("QCommandLinkButton { text-align: left; padding: 12px; }");  // 样式调整
+        button->setText(name);  // 主标题（菜品名称）
+        button->setDescription(
+            "所在食堂: " + canteenName + "  " +
+            "所在窗口: " + QString::number(windowId) + "  " +
+            "标签: " + label + "  " +
+            "价格: " + QString::number(price)+ "  "
+            +"评分:"+QString::number(score)
+            );  // 副标题（标签、价格等）
 
         connect(button, &QCommandLinkButton::clicked, this, [this, dish_id]() {
             this->evaluationPage(dish_id);
-            this->dishselect=dish_id;
+            this->dishselect = dish_id;
         });
-        layout->addWidget(button);  // 将按钮添加到布局
+        layout->addWidget(button);
     }
-    if(!hasData)
-    {
-        QLabel *text=new QLabel("暂无菜品");
+
+    // 如果没有数据，显示提示信息
+    if (!hasData) {
+        QLabel* text = new QLabel("暂无菜品", container);
         layout->addWidget(text);
+    }
+    layout->addStretch();
     }
 }
 
 
 
+
 void MainWindow::on_adddish_clicked()
 {
-    clearcontainer(ui->dynamic);
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+    clearcontainer(ui->dynamic1);
+    // 创建一个容器 QWidget 用来放置控件
+    QWidget* container = new QWidget();  // 可以选择 QScrollArea 或 QWidget，根据需要
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);  // 设置主布局
 
     // 窗口编号组
     QHBoxLayout* dishNameLayout = new QHBoxLayout();
@@ -666,7 +728,7 @@ void MainWindow::on_adddish_clicked()
     )";
         query.prepare(insertUserSql);
         query.bindValue(":port_id", this->portselect);
-        query.bindValue(":name", name); // 实际项目中密码需加密存储（如 MD5/SHA256）
+        query.bindValue(":name", name);
         query.bindValue(":price", price_dish);
         query.bindValue(":label", label);
         if (!query.exec()) {
@@ -678,7 +740,7 @@ void MainWindow::on_adddish_clicked()
         {
             db.commit();
             QMessageBox::information(this, "创建成功", "新菜品已添加");
-            return;
+            this->portPage(this->portselect);
         }
 
     });
@@ -697,6 +759,11 @@ void MainWindow::on_adddish_clicked()
     mainLayout->addLayout(buttonclass);
     mainLayout->setSpacing(5); // 组与组之间的间距10像素
     mainLayout->setContentsMargins(10, 10, 10, 10); // 容器边距
+    // 将主布局的容器添加到 ScrollArea 或 QFrame 中
+    QScrollArea* scrollArea = ui->dynamic1;  // 获取 QScrollArea
+    scrollArea->setWidget(container);  // 设置内容区域
+    scrollArea->setWidgetResizable(true);  // 支持自动调整大小
+
 }
 
 
@@ -707,10 +774,14 @@ void MainWindow::on_adddish_clicked()
 void MainWindow::on_addevaluation_clicked()
 {
 
-    clearcontainer(ui->dynamic);
-
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* mainLayout = new QVBoxLayout(container);
+    clearcontainer(ui->dynamic1);
+    // 创建一个容器 QWidget 用来放置控件
+    QWidget* container = new QWidget();  // 可以选择 QScrollArea 或 QWidget，根据需要
+    QVBoxLayout* mainLayout = new QVBoxLayout(container);  // 设置主布局
+    // 将主布局的容器添加到 ScrollArea 或 QFrame 中
+    QScrollArea* scrollArea = ui->dynamic1;  // 获取 QScrollArea
+    scrollArea->setWidget(container);  // 设置内容区域
+    scrollArea->setWidgetResizable(true);  // 支持自动调整大小
 
     // 窗口编号组
     QHBoxLayout* scoreLayout = new QHBoxLayout();
@@ -749,29 +820,37 @@ void MainWindow::on_addevaluation_clicked()
             return;
         }
 
-        // 假设你有对应的控件或者变量获取这些值
-        int userId = this->userId;  // 当前用户编号
-        int dishId = this->dishselect;  // 当前菜品编号
+
+        int userId = this->userId;
+        int dishId = this->dishselect;
         int score = scoreBox->currentText().toInt();// 评分，假设是 QSpinBox
         QString evaluationText = evaluation->toPlainText().trimmed();
-
-        // 简单校验评价不能为空
-        // if (evaluationText.isEmpty()) {
-        //     QMessageBox::warning(this, "输入错误", "评价内容不能为空");
+        // if(evaluationText=="")
+        // {
+        //     db.rollback();
+        //     QMessageBox::critical(this, "数据库错误", "评价内容不能为空：" + query.lastError().text());
         //     return;
         // }
-        // // 简单校验评分范围0~5
-        // if (score < 0 || score > 5) {
-        //     QMessageBox::warning(this, "输入错误", "评分必须在0到5之间");
-        //     return;
-        // }
+    //     QString insertSql = R"(
+    //     INSERT INTO 评价 (用户编号, 菜品编号, 评分, 评价)
+    //     VALUES (:user_id, :dish_id, :score, :evaluation)
+    // )";
 
-        QString insertSql = R"(
-        INSERT INTO 评价 (用户编号, 菜品编号, 评分, 评价)
-        VALUES (:user_id, :dish_id, :score, :evaluation)
-    )";
+    //     query.prepare(insertSql);
+    //     query.bindValue(":user_id", userId);
+    //     query.bindValue(":dish_id", dishId);
+    //     query.bindValue(":score", score);
+    //     query.bindValue(":evaluation", evaluationText);
 
-        query.prepare(insertSql);
+    //     if (!query.exec()) {
+    //         db.rollback();
+    //         QMessageBox::critical(this, "数据库错误", "添加评价失败：" + query.lastError().text());
+    //         return;
+    //     }
+
+        QString callSql = "CALL InsertEvaluation(:user_id, :dish_id, :score, :evaluation)";
+
+        query.prepare(callSql);
         query.bindValue(":user_id", userId);
         query.bindValue(":dish_id", dishId);
         query.bindValue(":score", score);
@@ -779,31 +858,24 @@ void MainWindow::on_addevaluation_clicked()
 
         if (!query.exec()) {
             db.rollback();
-            QMessageBox::critical(this, "数据库错误", "添加评价失败：" + query.lastError().text());
+            QMessageBox::critical(this, "数据库错误", "添加评价失败：评价不能为空");
             return;
         }
 
-        // 计算该菜品的平均评分
         QString avgScoreSql = R"(
             SELECT AVG(评分) FROM 评价 WHERE 菜品编号 = :dish_id
          )";
-
         query.prepare(avgScoreSql);
         query.bindValue(":dish_id", dishId);
-
         if (!query.exec()) {
             db.rollback();
             QMessageBox::critical(this, "数据库错误", "计算平均评分失败：" + query.lastError().text());
             return;
         }
-
-        // 获取平均评分
         float avgScore = 0.0;
         if (query.next()) {
             avgScore = query.value(0).toFloat();
         }
-
-        // 更新菜品评分
         QString updateDishSql = R"(
             UPDATE 菜品 SET 菜品评分 = :avg_score WHERE 菜品编号 = :dish_id
         )";
@@ -825,6 +897,8 @@ void MainWindow::on_addevaluation_clicked()
         }
 
         QMessageBox::information(this, "成功", "评价已成功添加，菜品评分已更新");
+        this->recommend();
+        this->evaluationPage(this->dishselect);
     });
 
 
@@ -848,7 +922,7 @@ void MainWindow::on_addevaluation_clicked()
 
 void MainWindow::on_profile_clicked()
 {
-    clearcontainer(ui->dynamic);
+    clearcontainer(ui->dynamic1);
     // 获取用户信息（假设已经有用户的ID和昵称）
     int userId = this->userId;  // 获取当前用户的ID
     QSqlDatabase &db = Database::getInstance().getDb();
@@ -878,11 +952,14 @@ void MainWindow::on_profile_clicked()
 
     // qDebug()<<userId;
     // 创建容器和布局
-    QFrame* container = ui->dynamic;
-    QVBoxLayout* layout = new QVBoxLayout(container);
+    QWidget* container = new QWidget();  // 可以选择 QScrollArea 或 QWidget，根据需要
+    QVBoxLayout* layout = new QVBoxLayout(container);  // 设置主布局
+    // 将主布局的容器添加到 ScrollArea 或 QFrame 中
+    QScrollArea* scrollArea = ui->dynamic1;  // 获取 QScrollArea
+    scrollArea->setWidget(container);  // 设置内容区域
+    scrollArea->setWidgetResizable(true);  // 支持自动调整大小
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(8);
-
     // 显示用户编号和昵称
     QLabel* userIdLabel = new QLabel(QString("用户编号: %1").arg(userId), container);
     QLabel* nicknameLabel = new QLabel(QString("昵称: %1").arg(nickname), container);
@@ -927,23 +1004,27 @@ void MainWindow::on_profile_clicked()
         if (reply == QMessageBox::Yes) {
             QSqlDatabase &db = Database::getInstance().getDb();
             QSqlQuery query(db);
-
-            // 开启事务
             if (!db.transaction()) {
                 QMessageBox::critical(this, "删除失败", "启动事务失败：" + db.lastError().text());
                 return;
             }
-
-            // 删除该用户的评论
+            query.prepare("select * from 管理员 WHERE 用户编号 = :userId");
+            query.bindValue(":userId", userId);
+            query.exec();
+            if(query.next())
+            {
+                // 说明查到了，当前用户是管理员
+                QMessageBox::warning(this, "操作禁止", "管理员账号不能删除！");
+                db.rollback();
+                return;
+            }
             query.prepare("DELETE FROM 评价 WHERE 用户编号 = :userId");
             query.bindValue(":userId", userId);
             if (!query.exec()) {
-                db.rollback();  // 如果删除评论失败，回滚事务
+                db.rollback();
                 QMessageBox::critical(this, "删除失败", "删除评论失败：" + query.lastError().text());
                 return;
             }
-
-            // 删除用户
             query.prepare("DELETE FROM 顾客 WHERE 用户编号 = :userId");
             query.bindValue(":userId", userId);
             if (!query.exec()) {
@@ -955,7 +1036,7 @@ void MainWindow::on_profile_clicked()
             query.prepare("DELETE FROM 用户 WHERE 用户编号 = :userId");
             query.bindValue(":userId", userId);
             if (!query.exec()) {
-                db.rollback();  // 如果删除用户数据失败，回滚事务
+                db.rollback();
                 QMessageBox::critical(this, "删除失败", "删除用户数据失败：" + query.lastError().text());
                 return;
             }
@@ -1030,4 +1111,139 @@ void MainWindow::on_homepage_clicked()
         this->canteenPage();
     }
 }
+
+void MainWindow::on_deletedish_clicked()
+{
+
+    int dishId = this->dishselect;  // 假设菜品 ID 存储在 dishselect 变量中
+
+
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "确认删除", "您确定要删除该菜品吗？", QMessageBox::Yes | QMessageBox::No);
+
+
+    if (reply == QMessageBox::Yes) {
+        QSqlDatabase &db = Database::getInstance().getDb();
+        QSqlQuery query(db);
+
+        // 启动数据库事务
+        db.transaction();
+
+
+        QString deleteCommentsSql = R"(
+            DELETE FROM 评价
+            WHERE 菜品编号 = :dishId
+        )";
+        query.prepare(deleteCommentsSql);
+        query.bindValue(":dishId", dishId);
+
+        if (!query.exec()) {
+            db.rollback();
+            QMessageBox::critical(this, "删除失败", "删除评论时发生错误：" + query.lastError().text());
+            return;
+        }
+
+
+        QString deleteDishSql = R"(
+            DELETE FROM 菜品
+            WHERE 菜品编号 = :dishId
+        )";
+        query.prepare(deleteDishSql);
+        query.bindValue(":dishId", dishId);
+
+        if (!query.exec()) {
+            db.rollback();
+            QMessageBox::critical(this, "删除失败", "删除菜品时发生错误：" + query.lastError().text());
+            return;
+        }
+
+        db.commit();
+
+        QMessageBox::information(this, "删除成功", "菜品已成功删除！");
+        ui->deletedish->hide();
+        ui->changedish->hide();
+        this->dishPage(this->portselect);
+    } else {
+
+        return;
+    }
+}
+
+
+
+
+
+
+void MainWindow::recommend()
+{
+    // 使用数据库查询，找出评分前十的菜品，并显示所在食堂和窗口信息
+    QSqlDatabase& db = Database::getInstance().getDb();
+    QSqlQuery query(db);
+
+    QString search = R"(
+        SELECT
+            菜品.菜品编号,
+            菜品.菜品名称,
+            菜品.菜品评分,
+            菜品.价格,
+            食堂.食堂名称,
+            窗口.窗口编号
+        FROM 菜品
+        INNER JOIN 窗口 ON 菜品.窗口编号 = 窗口.窗口编号
+        INNER JOIN 食堂 ON 窗口.所属食堂编号 = 食堂.食堂编号
+        ORDER BY 菜品.菜品评分 DESC
+        LIMIT 10
+    )";
+
+    query.prepare(search);
+
+    if (!query.exec()) {
+        qDebug() << "查询失败:" << query.lastError().text();
+        return;
+    }
+
+    // 清除原有推荐内容
+    clearcontainer(ui->recommend);
+
+    // 创建一个滚动区域显示推荐菜品
+    QScrollArea* scrollArea = ui->recommend;
+    scrollArea->setWidgetResizable(true);
+    QWidget* container = new QWidget();
+    scrollArea->setWidget(container);
+
+    QVBoxLayout* layout = new QVBoxLayout(container);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(8);
+
+    bool hasData = false;
+    while (query.next()) {
+        hasData = true;
+        QString name = query.value("菜品名称").toString();
+        float rating = query.value("菜品评分").toFloat();
+        float price = query.value("价格").toFloat();
+        int dishId = query.value("菜品编号").toInt();
+        QString canteenName = query.value("食堂名称").toString();  // 食堂名称
+        QString windowCategory = query.value("窗口编号").toString();  // 窗口分类
+
+        // 创建 QLabel 显示推荐菜品
+        QString displayText = QString("菜品名称: %1\n评分: %2  价格: %3\n食堂: %4  窗口: %5")
+                                  .arg(name).arg(rating).arg(price).arg(canteenName).arg(windowCategory);
+
+        QLabel* label = new QLabel(displayText, container);
+        label->setWordWrap(true);  // 设置文本换行显示
+        label->setAlignment(Qt::AlignTop);  // 设置顶部对齐
+
+        layout->addWidget(label);  // 将标签添加到布局中
+    }
+
+    // 如果没有数据，显示提示信息
+    if (!hasData) {
+        QLabel* noDataLabel = new QLabel("暂无推荐菜品", container);
+        layout->addWidget(noDataLabel);
+    }
+
+    layout->addStretch();
+
+}
+
 

@@ -10,7 +10,7 @@
 // }
 
 Database::Database()
-    : db(QSqlDatabase::addDatabase("QMYSQL", "SingletonConnection")) // 初始化列表初始化 const 成员
+    : db(QSqlDatabase::addDatabase("QMYSQL", "SingletonConnection"))
 {
 
     const_cast<QSqlDatabase&>(db).setHostName("localhost");
@@ -20,7 +20,6 @@ Database::Database()
     const_cast<QSqlDatabase&>(db).setPassword("20050721");
     if (!db.open()) {
         qCritical() << "数据库连接失败:" << db.lastError().text();
-        // 处理错误（如提示用户、终止程序）
 
     }
 }

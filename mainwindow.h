@@ -11,6 +11,7 @@
 #include<QLabel>
 #include<QListWidget>
 #include<QTextEdit>
+#include<QScrollArea>
 #include<QInputDialog>
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -31,12 +32,14 @@ public:
     MainWindow(QWidget *parent = nullptr,bool b=false,int id=0);
     ~MainWindow();
     bool eventFilter(QObject *object,QEvent *event) override;
-    void clearcontainer(QFrame *frame);
+    // void clearcontainer(QFrame *frame);
+    void clearcontainer(QScrollArea *frame);
     void canteenPage();
     void portPage(int id);
     void managePage(int id);
     void dishPage(int id);
     void evaluationPage(int id);
+    void recommend();
     Log *log;
 
 
@@ -55,6 +58,8 @@ private slots:
     void on_changedish_clicked();
 
     void on_homepage_clicked();
+
+    void on_deletedish_clicked();
 
 private:
     Ui::MainWindow *ui;
